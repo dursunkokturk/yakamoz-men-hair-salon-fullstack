@@ -186,7 +186,7 @@ function AppointmentsTab() {
             </tr>
           </thead>
           <tbody>
-            {dayAppointments.map((a) => (
+            {filteredAppointments.map((a) => (
               <tr key={a.id} onClick={() => openDetail(a)} className="admin-table__row">
                 <td>{a.fullName}</td>
                 <td>{a.serviceName}</td>
