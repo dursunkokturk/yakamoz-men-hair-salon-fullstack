@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Sun, Moon } from "lucide-react";
 import { Logo } from "../visuals/Logo";
 import { useAuth } from "../../context/AuthContext";
+import { useTheme } from "../../context/ThemeContext";
 
 const NAV_LINKS = [
   { to: "/", label: "Ana Sayfa" },
@@ -14,6 +15,7 @@ const NAV_LINKS = [
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { isAuthenticated } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
 
   function closeMenu() {
     setIsMenuOpen(false);
@@ -55,7 +57,18 @@ export function Header() {
             {isAuthenticated ? "Berber Paneli" : "Admin Girişi"}
           </NavLink>
         </nav>
+
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={toggleTheme}
+          aria-label={isDark ? "Açık temaya geç" : "Koyu temaya geç"}
+          title={isDark ? "Açık temaya geç" : "Koyu temaya geç"}
+        >
+          {isDark ? <Sun size={20} /> : <Moon size={20} />}
+        </button>
+
       </div>
-    </header>
+    </header >
   );
 }

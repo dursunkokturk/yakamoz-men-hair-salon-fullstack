@@ -1,7 +1,8 @@
 @import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap");
 
 /* ============ DESIGN TOKENS ============ */
-:root {
+:root,
+[data-theme="dark"] {
   --color-bg: #1b1712;
   --color-surface: #241f19;
   --color-surface-raised: #2e271f;
@@ -27,6 +28,23 @@
   --container-width: 1080px;
 }
 
+[data-theme="light"] {
+  --color-bg: #f7f3ec;
+  --color-surface: #ffffff;
+  --color-surface-raised: #f1ece2;
+  --color-border: #e2d9c8;
+  --color-accent: #a5732c;
+  --color-accent-deep: #7c5620;
+  --color-accent-soft: #f0e2c8;
+  --color-red: #b5433a;
+  --color-red-soft: #f6dcd9;
+  --color-green: #3f7a3a;
+  --color-text: #2a2118;
+  --color-text-muted: #6b5f4e;
+  --color-text-faint: #9a8c76;
+  --shadow-card: 0 12px 30px -14px rgba(0, 0, 0, 0.15);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -44,6 +62,8 @@ body {
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   line-height: 1.5;
+
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 h1,
@@ -283,6 +303,27 @@ button {
 
 .site-header__link--admin {
   color: var(--color-accent);
+}
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-accent);
+  cursor: pointer;
+  margin-left: 12px;
+  flex-shrink: 0;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.theme-toggle:hover {
+  border-color: var(--color-accent);
+  transform: rotate(15deg);
 }
 
 @media (min-width: 800px) {
