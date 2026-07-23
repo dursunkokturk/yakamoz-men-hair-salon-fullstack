@@ -1,0 +1,86 @@
+// Yakamoz Erkek Kuaförü — Veritabanı Şeması
+// bkz. Proje Analizi (MVP) bölüm 19 (Backend) ve 26 (Hizmet Yönetimi)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("admins")
+}
+
+model Service {
+  id              String        @id @default(cuid())
+  name            String
+  durationMinutes Int
+  price           Int
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  appointments    Appointment[]
+
+  @@map("services")
+}
+
+model Appointment {
+  id              String   @id @default(cuid())
+  fullName        String
+  phone           String
+  date            String // "YYYY-MM-DD"
+  time            String // "HH:mm"
+  serviceId       String
+  service         Service  @relation(fields: [serviceId], references: [id])
+  serviceName     String // oluşturulduğu andaki hizmet adı (hizmet daha sonra silinse/değişse bile geçmiş kaydı korur)
+  durationMinutes Int
+  price            Int
+  status          String   @default("pending") // pending | approved | completed | cancelled
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([date, time])
+  @@index([phone])
+  @@map("appointments")
+}
+
+model BlockedCustomer {
+  id        String   @id @default(cuid())
+  fullName  String
+  phone     String
+  reason    String?
+  blockedAt DateTime @default(now())
+
+  @@unique([fullName, phone])
+  @@map("blocked_customers")
+}
+
+model ClosedDay {
+  id        String   @id @default(cuid())
+  date      String   @unique // "YYYY-MM-DD"
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@map("closed_days")
+}
+
+model Settings {
+  id             Int     @id @default(1)
+  businessName   String  @default("Yakamoz Erkek Kuaförü")
+  phone          String  @default("0532 123 45 67")
+  address        String  @default("Merkez Mahallesi, Berber Sokak No:1")
+  workStartHour  Int     @default(9)
+  workEndHour    Int     @default(19)
+  closedWeekday  Int     @default(1) // dayjs weekday(): 0=Pazartesi ... 1=Salı
+
+  @@map("settings")
+}
