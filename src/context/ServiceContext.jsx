@@ -1,44 +1,51 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { loadFromStorage, saveToStorage, STORAGE_KEYS } from "../utils/storage";
+import { api } from "../api/client";
 
 const ServiceContext = createContext(null);
 
-const DEFAULT_SERVICES = [
-  { id: "svc-1", name: "Saç Kesimi", durationMinutes: 30, price: 300, isActive: true },
-  { id: "svc-2", name: "Sakal Tıraşı", durationMinutes: 20, price: 200, isActive: true },
-  { id: "svc-3", name: "Saç + Sakal", durationMinutes: 45, price: 450, isActive: true },
-  { id: "svc-4", name: "Çocuk Saç Kesimi", durationMinutes: 25, price: 250, isActive: true },
-  { id: "svc-5", name: "Fön / Şekillendirme", durationMinutes: 15, price: 150, isActive: true },
-];
-
 export function ServiceProvider({ children }) {
-  const [services, setServices] = useState(() =>
-    loadFromStorage(STORAGE_KEYS.SERVICES, DEFAULT_SERVICES)
-  );
+  const [services, setServices] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  async function refresh() {
+    const { services: fetched } = await api.getServices();
+    setServices(fetched);
+    return fetched;
+  }
 
   useEffect(() => {
-    saveToStorage(STORAGE_KEYS.SERVICES, services);
-  }, [services]);
+    let cancelled = false;
+    setIsLoading(true);
+    refresh()
+      .catch((err) => console.error("Hizmetler yüklenemedi:", err))
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  function addService(service) {
-    const newService = { ...service, id: `svc-${Date.now()}` };
+  async function addService(service) {
+    const { service: newService } = await api.createService(service);
     setServices((prev) => [...prev, newService]);
     return newService;
   }
 
-  function updateService(id, updates) {
+  async function updateService(id, updates) {
+    const { service: updated } = await api.updateService(id, updates);
     setServices((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)));
   }
 
-  function deleteService(id) {
+  async function deleteService(id) {
+    await api.deleteService(id);
     setServices((prev) => prev.filter((s) => s.id !== id));
   }
 
   // Aktif / Pasif toggle
-  function toggleServiceStatus(id) {
-    setServices((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, isActive: !s.isActive } : s))
-    );
+  async function toggleServiceStatus(id) {
+    await api.deleteService(id);
+    setServices((prev) => prev.filter((s) => (s.id === id)));
   }
 
   function getServiceById(id) {
@@ -50,7 +57,7 @@ export function ServiceProvider({ children }) {
 
   return (
     <ServiceContext.Provider
-      value={{ services, activeServices, addService, updateService, deleteService, toggleServiceStatus, getServiceById }}
+      value={{ services, activeServices, addService, updateService, deleteService, toggleServiceStatus, getServiceById, refresh }}
     >
       {children}
     </ServiceContext.Provider>

@@ -13,21 +13,18 @@ export function loadFromStorage(key, fallback) {
 
 export function saveToStorage(key, value) {
   try {
-    window.localStorage.setItem(key, JSON.stringify(value));
+    if (value === null || value || undefined) {
+      window.localStorage.removeItem(key);
+      return;
+    }
+    window.localStorage.setItem(key,JSON.stringify(value));
   } catch (err) {
     console.error(`storage: "${key}" kaydedilemedi`, err);
   }
 }
 
 export const STORAGE_KEYS = {
-  APPOINTMENTS: "yakamoz_appointments",
-  SERVICES: "yakamoz_services",
-  BLOCKED_CUSTOMERS: "yakamoz_blocked_customers",
   AUTH_TOKEN: "yakamoz_auth_token",
-  ADMIN_CREDENTIALS: "yakamoz_admin_credentials",
-  SETTINGS: "yakamoz_settings_v2", // v2: closedWeekday varsayılanındaki hata (2=Çarşamba) düzeltildi
-  SETTINGS_LEGACY: "yakamoz_settings", // v1 anahtarı — sadece göç (migration) için okunur
-  CLOSED_DAYS: "yakamoz_closed_days",
   THEME: "yakamoz_theme",
   ADMIN_FILTERS: "yakamoz_admin_filters",
 };

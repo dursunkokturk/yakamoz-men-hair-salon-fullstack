@@ -5,7 +5,6 @@ import { toast } from "react-toastify";
 import { CheckCircle2 } from "lucide-react";
 import { useServices } from "../../context/ServiceContext";
 import { useAppointments } from "../../context/AppointmentContext";
-import { useBlockedCustomers } from "../../context/BlockedCustomerContext";
 import { useAvailability } from "../../hooks/useAvailability";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
@@ -17,7 +16,6 @@ import { formatDateTR } from "../../utils/dateUtils";
 export function BookAppointment() {
   const { activeServices } = useServices();
   const { createAppointment } = useAppointments();
-  const { isCustomerBlocked } = useBlockedCustomers();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -44,13 +42,9 @@ export function BookAppointment() {
   const selectedService = activeServices.find((s) => s.id === selectedServiceId);
   const { isOpen, slots, closedReason } = useAvailability(selectedDate);
 
-  function onSubmit(values) {
+  async function onSubmit(values) {
     const fullName = normalizeName(values.fullName);
 
-    if (isCustomerBlocked(fullName, values.phone.trim())) {
-      toast.error("Bu isimle randevu oluşturulamıyor. Lütfen berberle iletişime geçin.");
-      return;
-    }
     if (!selectedDate) {
       toast.error("Lütfen bir tarih seçin");
       return;
@@ -66,7 +60,7 @@ export function BookAppointment() {
     }
 
     try {
-      const appointment = createAppointment({
+      const appointment = await createAppointment({
         fullName,
         phone: values.phone.trim(),
         date: selectedDate,
@@ -79,6 +73,9 @@ export function BookAppointment() {
       setConfirmedAppointment(appointment);
       toast.success("Randevunuz alındı, admin onayı bekleniyor");
     } catch (err) {
+      if (err.message === "CUSTOMER_BLOCKED") {
+        toast.error("Bu isimle randevu oluşturulamıyor. Lütfen berberle iletişime geçin.");
+      }
       if (err.message === "SLOT_FULL") {
         toast.error("Bu saat dolu, lütfen başka bir saat seçin");
       } else if (err.message === "DATE_CLOSED") {

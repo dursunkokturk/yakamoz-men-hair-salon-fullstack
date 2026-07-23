@@ -21,30 +21,45 @@ export function ServiceManagerList() {
     setIsFormOpen(true);
   }
 
-  function handleSubmit(values) {
-    if (editingService) {
-      updateService(editingService.id, values);
-      toast.success("Hizmet güncellendi");
-    } else {
-      addService(values);
-      toast.success("Hizmet eklendi");
+  async function handleSubmit(values) {
+    try {
+      if (editingService) {
+        updateService(editingService.id, values);
+        toast.success("Hizmet güncellendi");
+      } else {
+        addService(values);
+        toast.success("Hizmet eklendi");
+      }
+      setIsFormOpen(false);
+    } catch (err) {
+      console.error(err);
+      toast.error("İşlem Başarısız, Tekrar Deneyin");
     }
-    setIsFormOpen(false);
   }
 
-  function handleDelete(service) {
+  async function handleDelete(service) {
     if (window.confirm(`"${service.name}" hizmetini silmek istediğinize emin misiniz?`)) {
-      deleteService(service.id);
-      toast.info("Hizmet silindi");
+      try {
+        deleteService(service.id);
+        toast.info("Hizmet Silindi");
+      } catch (err) {
+        console.log(err);
+        toast.error("Hizmet Silinemedi");
+      }
     }
   }
 
   // Servis Aktif Pasif Bildirimi
-  function handleToggle(service) {
-    toggleServiceStatus(service.id);
+  async function handleToggle(service) {
+    try {
+      toggleServiceStatus(service.id);
     toast.info(
       service.isActive ? `"${service.name}" pasife alındı` : `"${service.name}" aktif edildi`
     );
+    } catch (err) {
+      console.log(err)
+      toast.error("Durum Güncellenemedi");
+    }
   }
 
   return (
@@ -80,13 +95,13 @@ export function ServiceManagerList() {
             </div>
           </li>
         ))}
-        {services.length === 0 && <p className="service-manager__empty">Henüz hizmet eklenmedi.</p>}
+        {services.length === 0 && <p className="service-manager__empty">Henüz Hizmet Eklenmedi.</p>}
       </ul>
 
       <Modal
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
-        title={editingService ? "Hizmeti düzenle" : "Yeni hizmet ekle"}
+        title={editingService ? "Hizmeti Düzenle" : "Yeni Hizmet Ekle"}
       >
         <ServiceForm
           initialValues={editingService}

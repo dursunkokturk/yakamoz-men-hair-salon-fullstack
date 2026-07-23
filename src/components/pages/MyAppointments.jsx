@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Search } from "lucide-react";
 import { useAppointments, APPOINTMENT_STATUS } from "../../context/AppointmentContext";
+import { api } from "../../api/client";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -11,18 +12,34 @@ import { formatDateTR } from "../../utils/dateUtils";
 export function MyAppointments() {
   const { appointments } = useAppointments();
   const [phone, setPhone] = useState("");
+  const [results, setResults] = useState([])
   const [searchedPhone, setSearchedPhone] = useState(null);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const results = searchedPhone
     ? appointments
-        .filter((a) => a.phone === searchedPhone)
-        .sort((a, b) => `${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`))
+      .filter((a) => a.phone === searchedPhone)
+      .sort((a, b) => `${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`))
     : [];
 
-  function handleSearch(e) {
+  // Musteri Randevu Sorgulamak Icin Backend'e Istek Atiyor
+  async function handleSearch(e) {
     e.preventDefault();
     if (!isValidPhone(phone)) return;
-    setSearchedPhone(phone.trim());
+
+    setIsLoading(true);
+    try {
+      const { appointments } = await api.lookupAppointments(phone.trim());
+      setResults(appointments);
+      setHasSearched(true);
+    } catch (err) {
+      console.error("Randevular sorgulanamadı:", err);
+      setResults([]);
+      setHasSearched(true);
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (

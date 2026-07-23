@@ -1,134 +1,128 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { loadFromStorage, saveToStorage, STORAGE_KEYS } from "../utils/storage";
-import { MAX_APPOINTMENTS_PER_SLOT } from "../utils/dateUtils";
-import { getDateClosureInfo } from "../utils/scheduling";
-import { useClosedDays } from "./ClosedDayContext";
-import { useSettings } from "./SettingsContext";
+import { createContext, useCallback, useContext, useState } from "react";
+import { api, ApiError } from "../api/client";
 
 const AppointmentContext = createContext(null);
 
 export const APPOINTMENT_STATUS = {
-  PENDING: "pending", // Bekliyor
-  APPROVED: "approved", // Onaylandı
-  COMPLETED: "completed", // Tamamlandı
-  CANCELLED: "cancelled", // İptal
+  PENDING: "PENDING",
+  APPROVED: "APPROVED",
+  COMPLETED: "COMPLETED",
+  CANCELLED: "CANCELLED",
 };
 
+// Backend Hata Kodlarini, 
+// Mevcut UI'nin Bekledigi 
+// err.message Degerlerine Cevirir
+function rethrowAsLegacyError(err) {
+  if (err instanceof ApiError) throw new Error(err.message); // ApiError.message Zaten Backend'in "code" Alani
+  throw err;
+}
+
 export function AppointmentProvider({ children }) {
-  const [appointments, setAppointments] = useState(() =>
-    loadFromStorage(STORAGE_KEYS.APPOINTMENTS, [])
-  );
+  // Artik Tum Randevular localStorage'da Degil, Backend'de Tutuluyor.
+  // Admin Panelinde Gun Bazli Cekiyoruz; "Randevularım" Sayfasi Telefonla Sorguluyor.
+  const [appointments, setAppointments] = useState([]);
 
-  // isDateBookable'ın Ihtiyac Duydugu Bagimliliklar
-  const { isDateClosed, getClosedDayInfo } = useClosedDays();
-  const { settings } = useSettings();
-
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.APPOINTMENTS, appointments);
-  }, [appointments]);
-
-  /** Belirli tarih+saatte, iptal edilmemiş kaç randevu var. */
-  function countActiveAppointmentsAt(date, time, excludeId = null) {
-    return appointments.filter(
-      (a) =>
-        a.date === date &&
-        a.time === time &&
-        a.status !== APPOINTMENT_STATUS.CANCELLED &&
-        a.id !== excludeId
-    ).length;
-  }
-
-  function isSlotFull(date, time, excludeId = null) {
-    return countActiveAppointmentsAt(date, time, excludeId) >= MAX_APPOINTMENTS_PER_SLOT;
-  }
-
-  /* Tarih Kapali Mi? 
-    Hem haftalık kapalı gün 
-    hem admin tarafından eklenen özel günler dahil. */
-  function isDateBookable(date) {
-    const { isClosed } = getDateClosureInfo(date, {
-      closedWeekday: settings.closedWeekday,
-      isDateClosed,
-      getClosedDayInfo,
-    });
-    return !isClosed;
-  }
-
-  function createAppointment(data) {
-
-    // Kapali Gun Kontrolu Artik Burada Uygulaniyor
-    if (!isDateBookable(data.date)) {
-      throw new Error("DATE_CLOSED");
+  // POST /api/appointments (Kapali Gun/Kontenjan/Engel
+  // Kontrolleri Artik Backend'de Yapiliyor; 
+  // Hata Durumunda Backend'in Kodu
+  // (DATE_CLOSED / SLOT_FULL / CUSTOMER_BLOCKED) fırlatılıyor)
+  async function createAppointment(data) {
+    try {
+      const { appointment } = await api.createAppointment(data);
+      setAppointments((prev) => [...prev, appointment]);
+      return appointment;
+    } catch (err) {
+      rethrowAsLegacyError(err);
     }
-    if (isSlotFull(data.date, data.time)) {
-      throw new Error("SLOT_FULL");
-    }
-    const appointment = {
-      id: `apt-${Date.now()}`,
-      status: APPOINTMENT_STATUS.PENDING,
-      createdAt: new Date().toISOString(),
-      ...data,
-    };
-    setAppointments((prev) => [...prev, appointment]);
-    return appointment;
   }
 
-  function approveAppointment(id) {
-    setAppointments((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status: APPOINTMENT_STATUS.APPROVED } : a))
-    );
+  // PATCH /api/appointments/:id { status: "approved" }
+  async function approveAppointment(id) {
+    const { appointment } = await api.updateAppointment(id, { status: APPOINTMENT_STATUS.APPROVED });
+    setAppointments((prev) => prev.map((a) => (a.id === id ? appointment : a)));
   }
 
-  function completeAppointment(id) {
-    setAppointments((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status: APPOINTMENT_STATUS.COMPLETED } : a))
-    );
+  async function completeAppointment(id) {
+    const { appointment } = await api.updateAppointment(id, { status: APPOINTMENT_STATUS.COMPLETED });
+    setAppointments((prev) => prev.map((a) => (a.id === id ? appointment : a)));
   }
 
-  function cancelAppointment(id) {
-    setAppointments((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status: APPOINTMENT_STATUS.CANCELLED } : a))
-    );
+  async function cancelAppointment(id) {
+    const { appointment } = await api.updateAppointment(id, { status: APPOINTMENT_STATUS.CANCELLED });
+    setAppointments((prev) => prev.map((a) => (a.id === id ? appointment : a)));
   }
 
-  function deleteAppointment(id) {
+  async function deleteAppointment(id) {
+    await api.deleteAppointment(id);
     setAppointments((prev) => prev.filter((a) => a.id !== id));
   }
 
-  function rescheduleAppointment(id, newDate, newTime) {
-    if (!isDateBookable(newDate)) {
-      throw new Error("DATE_CLOSED");
+  // PATCH /api/appointments/:id { date, time }
+  async function rescheduleAppointment(id, newDate, newTime) {
+    try {
+      const { appointment } = await api.updateAppointment(id, { date: newDate, time: newTime });
+      setAppointments((prev) => prev.map((a) => (a.id === id ? appointment : a)));
+    } catch (err) {
+      rethrowAsLegacyError(err);
     }
-
-    if (isSlotFull(newDate, newTime, id)) {
-      throw new Error("SLOT_FULL");
-    }
-
-    setAppointments((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, date: newDate, time: newTime } : a))
-    );
   }
 
-  function getAppointmentsByDate(date) {
-    return appointments
-      .filter((a) => a.date === date)
-      .sort((a, b) => a.time.localeCompare(b.time));
+  // Artik Backend'den GET /api/appointments?date=... Cekiyor
+  // ve Sonucu state'e Yaziyor (AdminPanel Bunu Her Gun/Tarih Degistiginde Cagirir)
+  async function fetchByDate(date) {
+    const { appointments: fetched } = await api.getAppointments({ date });
+    setAppointments((prev) => {
+      const others = prev.filter((a) => a.date !== date);
+      return [...others, ...fetched];
+    });
+    return fetched;
+  }
+
+  async function fetchByPhone(phone) {
+    return api.get(`/appointments/by-phone?phone=${encodeURIComponent(phone)}`);
+  }
+
+  // Randevu oluşturma herkese açık bir uç nokta; token gerekmiyor.
+  // Kapalı gün / kontenjan / engelli müşteri kontrolleri artık backend'de yapılıyor,
+  // burada sadece backend'in döndürdüğü hata kodunu (SLOT_FULL, DATE_CLOSED,
+  // CUSTOMER_BLOCKED) UI'a aktarıyoruz.
+  async function createAppointment(data) {
+    return api.post("/appointments", data, { skipAuth: true });
+  }
+
+  async function approveAppointment(id) {
+    return api.patch(`/appointments/${id}/status`, { status: APPOINTMENT_STATUS.APPROVED });
+  }
+
+  async function completeAppointment(id) {
+    return api.patch(`/appointments/${id}/status`, { status: APPOINTMENT_STATUS.COMPLETED });
+  }
+
+  async function cancelAppointment(id) {
+    return api.patch(`/appointments/${id}/status`, { status: APPOINTMENT_STATUS.CANCELLED });
+  }
+
+  async function deleteAppointment(id) {
+    return api.delete(`/appointments/${id}`);
+  }
+
+  async function rescheduleAppointment(id, newDate, newTime) {
+    return api.patch(`/appointments/${id}/reschedule`, { date: newDate, time: newTime });
   }
 
   return (
     <AppointmentContext.Provider
       value={{
-        appointments,
+        dayAppointments,
+        fetchByDate,
+        fetchByPhone,
         createAppointment,
         approveAppointment,
         completeAppointment,
         cancelAppointment,
         deleteAppointment,
         rescheduleAppointment,
-        getAppointmentsByDate,
-        countActiveAppointmentsAt,
-        isSlotFull,
-        isDateBookable
       }}
     >
       {children}

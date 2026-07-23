@@ -20,15 +20,15 @@ export function PasswordSettings() {
 
   const newPassword = watch("newPassword");
 
-  function onSubmit(values) {
+  async function onSubmit(values) {
     try {
-      changePassword(values.currentPassword, values.newPassword);
+      await changePassword(values.currentPassword, values.newPassword);
       toast.success("Şifreniz güncellendi");
       reset();
     } catch (err) {
-      if (err.message === "WRONG_CURRENT_PASSWORD") {
+      if (err.code === "WRONG_CURRENT_PASSWORD") {
         setError("currentPassword", { message: "Mevcut şifre hatalı" });
-      } else if (err.message === "WEAK_PASSWORD") {
+      } else if (err.code === "WEAK_PASSWORD") {
         setError("newPassword", { message: "Şifre en az 6 karakter olmalı" });
       } else {
         toast.error("Şifre güncellenemedi, tekrar deneyin");

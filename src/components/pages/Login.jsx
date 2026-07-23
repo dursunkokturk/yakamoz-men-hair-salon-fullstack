@@ -16,12 +16,12 @@ export function Login() {
     formState: { errors, isSubmitting },
   } = useForm({ defaultValues: { username: "", password: "" } });
 
-  function onSubmit(values) {
+  async function onSubmit(values) {
     try {
-      login(values.username.trim(), values.password);
+      await login(values.username.trim(), values.password);
       toast.success("Hoş geldiniz");
       navigate("/admin");
-    } catch {
+    } catch (err){
       setError("root", { message: "Kullanıcı adı veya şifre hatalı" });
     }
   }

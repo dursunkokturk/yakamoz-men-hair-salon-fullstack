@@ -14,11 +14,11 @@ export function ClosedDaysManager() {
   const [reasonType, setReasonType] = useState(CLOSURE_REASONS[0]);
   const [customReason, setCustomReason] = useState("");
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!date) return toast.error("Lütfen bir tarih seçin");
     const finalReason = reasonType === "Diğer" ? (customReason.trim() || "Diğer") : reasonType;
     try {
-      addClosedDay(date, finalReason);
+      await addClosedDay(date, finalReason);
       toast.success("Kapalı gün eklendi");
       setDate("");
       setCustomReason("");

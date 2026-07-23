@@ -1,46 +1,39 @@
-import { useMemo } from "react";
-import { useAppointments } from "../context/AppointmentContext";
-import { useClosedDays } from "../context/ClosedDayContext";
-import { useSettings } from "../context/SettingsContext";
-import { getDateClosureInfo } from "../utils/scheduling";
-import {
-  generateTimeSlots,
-  isPastDateTime,
-  MAX_APPOINTMENTS_PER_SLOT,
-} from "../utils/dateUtils";
+import { useMemo, useState } from "react";
+import { api } from "../api/client";
 
 /**
  * Verilen tarih için tüm saat dilimlerini, her birinin dolu/boş durumuyla birlikte döner.
  * Salı günleri ve geçmiş saatler otomatik olarak pasif sayılır.
  */
 export function useAvailability(dateISO) {
-  const { countActiveAppointmentsAt } = useAppointments();
-  const { isDateClosed, getClosedDayInfo } = useClosedDays();
-  const { settings } = useSettings();
+  const [result, setResult] = useState(EMPTY_RESULT);
+  const [isLoading, setIsLoading] = useState(false);
 
-  return useMemo(() => {
-    if (!dateISO) return { isOpen: false, slots: [], closedReason: null };
-
-    const { isClosed, reason } = getDateClosureInfo(dateISO, {
-      closedWeekday: settings.closedWeekday, isDateClosed, getClosedDayInfo,
-    });
-
-    if (isClosed) {
-      return { isOpen: false, slots: [], closedReason: reason };
+  useEffect(() => {
+    if (!dateISO) {
+      setResult(EMPTY_RESULT);
     }
 
-    const slots = generateTimeSlots().map((time) => {
-      const takenCount = countActiveAppointmentsAt(dateISO, time);
-      const isPast = isPastDateTime(dateISO, time);
-      return {
-        time,
-        takenCount,
-        remaining: Math.max(0, MAX_APPOINTMENTS_PER_SLOT - takenCount),
-        isFull: takenCount >= MAX_APPOINTMENTS_PER_SLOT,
-        isPast,
-        isDisabled: takenCount >= MAX_APPOINTMENTS_PER_SLOT || isPast,
-      };
-    });
-    return { isOpen: true, slots, closedReason: null };
-  }, [dateISO, countActiveAppointmentsAt, isDateClosed, getClosedDayInfo, settings.closedWeekday]);
+    let cancelled = false;
+    setIsLoading(true);
+
+    api
+      .getAvailability(dateISO)
+      .then((data) => {
+        if (!cancelled) setResult(data);
+      })
+      .catch((err) => {
+        console.error("Uygun saatler alınamadı:", err);
+        if (!cancelled) setResult(EMPTY_RESULT);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dateISO]);
+
+  return { ...result, isLoading };
 }

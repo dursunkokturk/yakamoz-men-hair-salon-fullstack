@@ -1,28 +1,46 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { loadFromStorage, saveToStorage, STORAGE_KEYS } from "../utils/storage";
+import { api, ApiError } from "../api/client";
 
 const ClosedDayContext = createContext(null);
 
 export function ClosedDayProvider({ children }) {
-  const [closedDays, setClosedDays] = useState(() =>
-    loadFromStorage(STORAGE_KEYS.CLOSED_DAYS, [])
-  );
+  const [closedDays, setClosedDays] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.CLOSED_DAYS, closedDays);
-  }, [closedDays]);
-
-  function addClosedDay(date, reason = "") {
-    if (closedDays.some((d) => d.date === date)) {
-      throw new Error("ALREADY_CLOSED");
-    }
-
-    const entry = { id: `cd-${Date.now()}`, date, reason:reason.trim() };
-    setClosedDays((prev) => [...prev, entry].sort((a,b)=>a.date.localeCompare(b.date)));
-    return entry;
+  async function refresh() {
+    const { closedDays: fetched } = await api.getClosedDays();
+    setClosedDays(fetched);
+    return fetched;
   }
 
-  function removeClosedDay(id) {
+  useEffect(() => {
+    let cancelled = false;
+    refresh()
+      .catch((err) => console.error("Kapalı Günler Yüklenemedi:", err))
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function addClosedDay(date, reason = "") {
+    try {
+      const { closedDay: entry } = await api.addClosedDay(date, reason);
+      setClosedDays((prev) => [...prev, entry].sort((a, b) => a.date.localeCompare(b.date)));
+      return entry;
+    } catch (err) {
+      // ClosedDaysManager.jsx Hâlâ err.message === "ALREADY_CLOSED" Kontrolu Yapabilsin Diye
+      if (err instanceof ApiError && err.details?.code === "ALREADY_CLOSED") {
+        throw new Error("ALREADY_CLOSED");
+      }
+      throw err;
+    }
+  }
+
+  async function removeClosedDay(id) {
+    await api.removeClosedDay(id);
     setClosedDays((prev) => prev.filter((d) => d.id !== id));
   }
 

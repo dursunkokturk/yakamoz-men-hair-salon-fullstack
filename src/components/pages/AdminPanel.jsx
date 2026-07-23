@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { LogOut, ChevronLeft, ChevronRight, Check, CheckCheck, Ban, Trash2, CalendarClock } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -68,15 +68,37 @@ export function AdminPanel() {
 }
 
 function AppointmentsTab() {
-  const { getAppointmentsByDate, approveAppointment, completeAppointment, cancelAppointment, deleteAppointment, rescheduleAppointment } =
+  const { getAppointmentsByDate, fetchByDate, approveAppointment, completeAppointment, cancelAppointment, deleteAppointment, rescheduleAppointment } =
     useAppointments();
   const { blockCustomer } = useBlockedCustomers();
   const [activeDate, setActiveDate] = useState(todayISO());
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingDay, setIsLoadingDay] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [rescheduleMode, setRescheduleMode] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("");
   const [filters, setFilters] = useState({ status: "all", serviceId: "all", customerName: "" });
+
+  // Gunluk Randevulari Aktif Olan Tarihe Gore Listeleme
+  // Bir Onceki Yada Bir Sonraki Tarihe Bakildiginda 
+  // Bakilan Tarihe Gore Alinan Randevulardaki Musteri Bilgilerini
+  // Backend'den Cekiyoruz
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    fetchByDate(activeDate)
+      .catch((err) => {
+        console.error(err);
+        toast.error("Randevular yüklenemedi");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingDay(false)
+      });
+    return (() => {
+      cancelled = true;
+    });
+  }, [activeDate]);
 
   const dayAppointments = useMemo(() => getAppointmentsByDate(activeDate), [getAppointmentsByDate, activeDate]);
 
@@ -90,7 +112,8 @@ function AppointmentsTab() {
       }
       return true;
     });
-  }, [dayAppointments, filters]);
+  }, [dayAppointments, filters]
+  );
 
   const { slots: rescheduleSlots } = useAvailability(rescheduleDate);
 
@@ -113,53 +136,77 @@ function AppointmentsTab() {
     setRescheduleMode(false);
   }
 
-  function handleApprove() {
-    approveAppointment(selectedAppointment.id);
-    toast.success("Randevu onaylandı");
-    closeDetail();
-  }
-
-  function handleComplete() {
-    completeAppointment(selectedAppointment.id);
-    toast.success("Randevu tamamlandı olarak işaretlendi");
-    closeDetail();
-  }
-
-  function handleCancel() {
-    cancelAppointment(selectedAppointment.id);
-    toast.info("Randevu iptal edildi");
-    closeDetail();
-  }
-
-  function handleDelete() {
-    if (window.confirm("Bu randevu kaydı silinsin mi?")) {
-      deleteAppointment(selectedAppointment.id);
-      toast.info("Randevu silindi");
-      closeDetail();
-    }
-  }
-
-  function handleBlock() {
-    if (window.confirm(`${selectedAppointment.fullName} engellensin mi?`)) {
-      blockCustomer(selectedAppointment.fullName, selectedAppointment.phone, "Admin tarafından engellendi");
-      cancelAppointment(selectedAppointment.id);
-      toast.info("Müşteri engellendi");
-      closeDetail();
-    }
-  }
-
-  function handleReschedule() {
+  async function handleApprove() {
     try {
-      rescheduleAppointment(selectedAppointment.id, rescheduleDate, rescheduleTime);
-      toast.success("Randevu tarihi güncellendi");
+      await approveAppointment(selectedAppointment.id);
+      toast.success("Randevu onaylandı");
+      await fetchByDate(activeDate);
       closeDetail();
     } catch (err) {
-      if (err.message === "SLOT_FULL") {
+      toast.error(err.message || "İşlem başarısız");
+    }
+  }
+
+  async function handleComplete() {
+    try {
+      await completeAppointment(selectedAppointment.id);
+      toast.success("Randevu tamamlandı olarak işaretlendi");
+      await fetchByDate(activeDate);
+      closeDetail();
+    } catch (err) {
+      toast.error(err.message || "İşlem başarısız");
+    }
+  }
+
+  async function handleCancel() {
+    try {
+      await cancelAppointment(selectedAppointment.id);
+      toast.info("Randevu iptal edildi");
+      await fetchByDate(activeDate);
+      closeDetail();
+    } catch (err) {
+      toast.error(err.message || "İşlem başarısız");
+    }
+  }
+
+  async function handleDelete() {
+    if (!window.confirm("Bu randevu kaydı silinsin mi?")) return;
+    try {
+      await deleteAppointment(selectedAppointment.id);
+      toast.info("Randevu silindi");
+      await fetchByDate(activeDate);
+      closeDetail();
+    } catch (err) {
+      toast.error(err.message || "Silme başarısız");
+    }
+  }
+
+  async function handleBlock() {
+    if (!window.confirm(`${selectedAppointment.fullName} engellensin mi?`)) return;
+    try {
+      blockCustomer(selectedAppointment.fullName, selectedAppointment.phone, "Admin tarafından engellendi");
+      await cancelAppointment(selectedAppointment.id);
+      toast.info("Müşteri engellendi");
+      await fetchByDate(activeDate);
+      closeDetail();
+    } catch (err) {
+      toast.error(err.message || "İşlem başarısız");
+    }
+  }
+
+  async function handleReschedule() {
+    try {
+      await rescheduleAppointment(selectedAppointment.id, rescheduleDate, rescheduleTime);
+      toast.success("Randevu tarihi güncellendi");
+      await fetchByDate(activeDate);
+      closeDetail();
+    } catch (err) {
+      if (err.code === "SLOT_FULL") {
         toast.error("Seçilen saat dolu");
-      } else if (err.message === "DATE_CLOSED") {
+      } else if (err.code === "DATE_CLOSED") {
         toast.error("Bu tarihte işletme kapalı");
       } else {
-        toast.error("Güncelleme başarısız");
+        toast.error(err.message || "Güncelleme başarısız");
       }
     }
   }
@@ -327,7 +374,37 @@ function AppointmentsTab() {
 }
 
 function BlockedCustomersTab() {
-  const { blockedCustomers, unblockCustomer } = useBlockedCustomers();
+  const { blockedCustomers, unblockCustomer, refresh } = useBlockedCustomers();
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Engellenen Musteriler Sekmesi Acildiginda 
+  // Backend'den Engellenen Musterileri Aliyoruz
+  useEffect(() => {
+    let cancelled = false;
+    refresh()
+      .catch((err) => {
+        console.error(err);
+        toast.error("Engellenen müşteriler yüklenemedi");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleUnblock(id) {
+    try {
+      await unblockCustomer(id);
+    } catch (err) {
+      console.error(err);
+      toast.error("Engel kaldırılamadı");
+    }
+  }
+
+  if (isLoading) return <p className="admin-appointments__empty">Yükleniyor...</p>;
 
   return (
     <div className="admin-blocked">

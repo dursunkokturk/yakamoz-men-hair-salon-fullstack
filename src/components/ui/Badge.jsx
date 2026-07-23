@@ -6,6 +6,7 @@ const STATUS_LABELS = {
 };
 
 export function Badge({ status, children }) {
-  const label = children ?? STATUS_LABELS[status] ?? status;
-  return <span className={`ui-badge ui-badge--${status}`}>{label}</span>;
+  const key = status?.toLowerCase();
+  const label = children ?? STATUS_LABELS[key] ?? status;
+  return <span className={`ui-badge ui-badge--${key}`}>{label}</span>;
 }

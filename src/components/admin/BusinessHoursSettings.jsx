@@ -9,9 +9,14 @@ const WEEKDAY_OPTIONS = WEEKDAY_LABELS.map((label, value) => ({ value, label }))
 export function BusinessHoursSettings() {
   const { settings, updateSettings } = useSettings();
 
-  function handleChange(e) {
-    updateSettings({ closedWeekday: Number(e.target.value) });
-    toast.success("Haftalık kapalı gün güncellendi");
+  async function handleChange(e) {
+    try {
+      await updateSettings({ closedWeekday: Number(e.target.value) });
+      toast.success("Haftalık kapalı gün güncellendi");
+    } catch (err) {
+      console.log(err)
+      toast.error("Güncelleme Başarısız Tekrar Deneyin")
+    }
   }
 
   return (
