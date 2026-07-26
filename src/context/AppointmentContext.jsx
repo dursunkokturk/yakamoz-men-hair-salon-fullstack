@@ -1,13 +1,13 @@
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useContext, useState } from "react";
 import { api, ApiError } from "../api/client";
 
 const AppointmentContext = createContext(null);
 
 export const APPOINTMENT_STATUS = {
-  PENDING: "PENDING",
-  APPROVED: "APPROVED",
-  COMPLETED: "COMPLETED",
-  CANCELLED: "CANCELLED",
+  PENDING: "pending",
+  APPROVED: "approved",
+  COMPLETED: "completed",
+  CANCELLED: "cancelled",
 };
 
 // Backend Hata Kodlarini, 
@@ -79,50 +79,22 @@ export function AppointmentProvider({ children }) {
     return fetched;
   }
 
-  async function fetchByPhone(phone) {
-    return api.get(`/appointments/by-phone?phone=${encodeURIComponent(phone)}`);
-  }
-
-  // Randevu oluşturma herkese açık bir uç nokta; token gerekmiyor.
-  // Kapalı gün / kontenjan / engelli müşteri kontrolleri artık backend'de yapılıyor,
-  // burada sadece backend'in döndürdüğü hata kodunu (SLOT_FULL, DATE_CLOSED,
-  // CUSTOMER_BLOCKED) UI'a aktarıyoruz.
-  async function createAppointment(data) {
-    return api.post("/appointments", data, { skipAuth: true });
-  }
-
-  async function approveAppointment(id) {
-    return api.patch(`/appointments/${id}/status`, { status: APPOINTMENT_STATUS.APPROVED });
-  }
-
-  async function completeAppointment(id) {
-    return api.patch(`/appointments/${id}/status`, { status: APPOINTMENT_STATUS.COMPLETED });
-  }
-
-  async function cancelAppointment(id) {
-    return api.patch(`/appointments/${id}/status`, { status: APPOINTMENT_STATUS.CANCELLED });
-  }
-
-  async function deleteAppointment(id) {
-    return api.delete(`/appointments/${id}`);
-  }
-
-  async function rescheduleAppointment(id, newDate, newTime) {
-    return api.patch(`/appointments/${id}/reschedule`, { date: newDate, time: newTime });
+  function getAppointmentsByDate(date) {
+    return appointments.filter((a) => a.date === date).sort((a, b) => a.time.localeCompare(b.time));
   }
 
   return (
     <AppointmentContext.Provider
       value={{
-        dayAppointments,
-        fetchByDate,
-        fetchByPhone,
+        appointments,
         createAppointment,
         approveAppointment,
         completeAppointment,
         cancelAppointment,
         deleteAppointment,
         rescheduleAppointment,
+        getAppointmentsByDate,
+        fetchByDate,
       }}
     >
       {children}

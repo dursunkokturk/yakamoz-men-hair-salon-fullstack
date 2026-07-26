@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api/client";
 
+const EMPTY_RESULT = { isOpen: false, slots: [], closedReason: null }
 /**
  * Verilen tarih için tüm saat dilimlerini, her birinin dolu/boş durumuyla birlikte döner.
  * Salı günleri ve geçmiş saatler otomatik olarak pasif sayılır.
@@ -12,6 +13,7 @@ export function useAvailability(dateISO) {
   useEffect(() => {
     if (!dateISO) {
       setResult(EMPTY_RESULT);
+      return;
     }
 
     let cancelled = false;

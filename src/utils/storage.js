@@ -13,7 +13,7 @@ export function loadFromStorage(key, fallback) {
 
 export function saveToStorage(key, value) {
   try {
-    if (value === null || value || undefined) {
+    if (value === null || value === undefined) {
       window.localStorage.removeItem(key);
       return;
     }

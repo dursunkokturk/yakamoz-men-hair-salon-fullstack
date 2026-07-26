@@ -1,13 +1,13 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { loadFromStorage, saveToStorage, STORAGE_KEYS } from "../utils/storage";
 import { api, ApiError } from "../api/client";
-import { saveToStorage, STORAGE_KEYS } from "../utils/storage";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => loadFromStorage(STORAGE_KEYS.AUTH_TOKEN, null));
-  const [admin, setAdmin] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [adminUsername, setAdminUsername] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true); // Ilk Yuklemede /auth/me Dogrulanana Kadar
 
   // Sayfa Yenilendiginde, Token Backend Uzerinden Dogrula.
@@ -40,7 +40,7 @@ export function AuthProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [token]);
 
   // Backend'e Istek Atiyor
   async function login(username, password) {
@@ -61,7 +61,9 @@ export function AuthProvider({ children }) {
 
   function logout() {
     setToken(null);
-    setAdmin(null);
+    setAdminUsername(null);
+    setIsAuthenticated(false);
+    saveToStorage(STORAGE_KEYS.AUTH_TOKEN, null);
   }
 
   // PATCH /api/auth/password Cagiriyor

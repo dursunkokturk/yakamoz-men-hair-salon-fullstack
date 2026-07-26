@@ -3,7 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import { Spinner } from "../ui/Spinner";
 
 export function ProtectedRoute({ children }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isCheckingSession } = useAuth();
   
   if (isCheckingSession) {
     return <Spinner label="Oturum doğrulanıyor" />;

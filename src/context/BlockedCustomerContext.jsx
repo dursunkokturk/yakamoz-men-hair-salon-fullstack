@@ -1,8 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { loadFromStorage, saveToStorage, STORAGE_KEYS } from "../utils/storage";
-import { nameKey } from "../utils/validation";
 import { api } from "../api/client";
-
 
 const BlockedCustomerContext = createContext(null);
 
@@ -22,20 +19,20 @@ export function BlockedCustomerProvider({ children }) {
     }
   }
 
-  function blockCustomer(fullName, phone, reason = "") {
+  async function blockCustomer(fullName, phone, reason = "") {
     const { blockedCustomer: entry } = await api.blockCustomer(fullName, phone, reason);
     setBlockedCustomers((prev) => [...prev, entry]);
     return entry;
   }
 
-  function unblockCustomer(id) {
+  async function unblockCustomer(id) {
     await api.unblockCustomer(id);
     setBlockedCustomers((prev) => prev.filter((b) => b.id !== id));
   }
 
   return (
     <BlockedCustomerContext.Provider
-      value={{ blockedCustomers, blockCustomer, unblockCustomer, isCustomerBlocked }}
+      value={{ blockedCustomers, isLoading, blockCustomer, unblockCustomer, refresh }}
     >
       {children}
     </BlockedCustomerContext.Provider>
