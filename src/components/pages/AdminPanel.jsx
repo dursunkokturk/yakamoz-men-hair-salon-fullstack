@@ -184,7 +184,7 @@ function AppointmentsTab() {
   async function handleBlock() {
     if (!window.confirm(`${selectedAppointment.fullName} engellensin mi?`)) return;
     try {
-      blockCustomer(selectedAppointment.fullName, selectedAppointment.phone, "Admin tarafından engellendi");
+      await blockCustomer(selectedAppointment.fullName, selectedAppointment.phone, "Admin tarafından engellendi");
       await cancelAppointment(selectedAppointment.id);
       toast.info("Müşteri engellendi");
       await fetchByDate(activeDate);

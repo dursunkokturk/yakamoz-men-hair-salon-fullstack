@@ -44,8 +44,11 @@ export function ServiceProvider({ children }) {
 
   // Aktif / Pasif toggle
   async function toggleServiceStatus(id) {
+    const service = getServiceById(id);
+    if (!service) return;
+    const { service: updated } = await api.updateService(id, { isActive: !service.isActive })
     await api.deleteService(id);
-    setServices((prev) => prev.filter((s) => (s.id === id)));
+    setServices((prev) => prev.map((s) => (s.id === id ? updated : s)));
   }
 
   function getServiceById(id) {

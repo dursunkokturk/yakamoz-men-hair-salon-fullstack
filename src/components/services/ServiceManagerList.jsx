@@ -24,10 +24,10 @@ export function ServiceManagerList() {
   async function handleSubmit(values) {
     try {
       if (editingService) {
-        updateService(editingService.id, values);
+        await updateService(editingService.id, values);
         toast.success("Hizmet güncellendi");
       } else {
-        addService(values);
+        await addService(values);
         toast.success("Hizmet eklendi");
       }
       setIsFormOpen(false);
@@ -40,7 +40,7 @@ export function ServiceManagerList() {
   async function handleDelete(service) {
     if (window.confirm(`"${service.name}" hizmetini silmek istediğinize emin misiniz?`)) {
       try {
-        deleteService(service.id);
+        await deleteService(service.id);
         toast.info("Hizmet Silindi");
       } catch (err) {
         console.log(err);
@@ -52,7 +52,7 @@ export function ServiceManagerList() {
   // Servis Aktif Pasif Bildirimi
   async function handleToggle(service) {
     try {
-      toggleServiceStatus(service.id);
+      await toggleServiceStatus(service.id);
     toast.info(
       service.isActive ? `"${service.name}" pasife alındı` : `"${service.name}" aktif edildi`
     );
